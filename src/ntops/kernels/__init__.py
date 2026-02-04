@@ -38,6 +38,7 @@ from ntops.kernels import (
     tanh,
     embedding,
     cosine_embedding_loss,
+    hardshrink,
 )
 
 __all__ = [
@@ -80,4 +81,5 @@ __all__ = [
     "tanh",
     "embedding",
     "cosine_embedding_loss",
+    "hardshrink",
 ]

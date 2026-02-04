@@ -38,6 +38,7 @@ from ntops.torch.sub import sub
 from ntops.torch.tanh import tanh
 from ntops.torch.embedding import embedding
 from ntops.torch.cosine_embedding_loss import cosine_embedding_loss
+from ntops.torch.hardshrink import hardshrink
 
 __all__ = [
     "abs",
@@ -80,4 +81,5 @@ __all__ = [
     "tanh",
     "embedding",
     "cosine_embedding_loss",
+    "hardshrink",
 ]
