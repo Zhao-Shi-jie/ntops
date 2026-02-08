@@ -39,6 +39,7 @@ from ntops.kernels import (
     embedding,
     cosine_embedding_loss,
     hardshrink,
+    argmin,
 )
 
 __all__ = [
@@ -82,4 +83,5 @@ __all__ = [
     "embedding",
     "cosine_embedding_loss",
     "hardshrink",
+    "argmin",
 ]
