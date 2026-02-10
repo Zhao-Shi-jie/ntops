@@ -13,7 +13,7 @@ def hardshrink(input, lambd=0.5):
     
     kernel = _cached_make(
         ntops.kernels.hardshrink.hardshrink_premake,
-        ndim=input.ndim,
+        input.ndim,
         block_size=1024,
     )
     
