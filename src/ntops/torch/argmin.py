@@ -25,13 +25,17 @@ def argmin(input, axis=None, keepdim=False):
 
     output = torch.empty(output_shape, dtype=torch.int64, device=input.device)
 
-    print(f"input shape: {input.shape}, output shape: {output.shape}, axis: {axis}, keepdim: {keepdim}")
-    print(f"input dtype: {input.dtype}, output dtype: {output.dtype}, output dim: {output.dim()}")
-    print(f"target_dim: {target_dim}, axis_is_none: {axis_is_none}")
+    # print(f"input shape: {input.shape}, output shape: {output.shape}, axis: {axis}, keepdim: {keepdim}")
+    # print(f"input dtype: {input.dtype}, output dtype: {output.dtype}, output dim: {output.dim()}")
+    # print(f"target_dim: {target_dim}, axis_is_none: {axis_is_none}")
+    # 计算input含有的元素数量，通过乘积计算得到
+    num_elements = 1
+    for s in input.shape:
+        num_elements *= s
 
     kernel = _cached_make(
         ntops.kernels.argmin.premake,
-        input.shape[target_dim] if not axis_is_none else 1,
+        input.shape[target_dim] if not axis_is_none else num_elements,
         dtype=input.dtype,
         in_dims=input.dim(),
         out_dims=output.dim(),
@@ -43,7 +47,7 @@ def argmin(input, axis=None, keepdim=False):
     kernel(
         input,
         output,
-        input.shape[target_dim] if not axis_is_none else 1,
+        input.shape[target_dim] if not axis_is_none else num_elements,
     )
 
     return output

@@ -1,15 +1,13 @@
-import enum
 import functools
 import ninetoothed
 import ninetoothed.language as ntl
 from ninetoothed import Tensor
 
-BLOCK_SIZE = ninetoothed.block_size()
 
 def arrangement(input, output, target_dim_size, in_dims=None, out_dims=None, axis=None, axis_is_none=False, target_dim_size_power2=None):
     if axis_is_none:
         input = input.flatten()
-        input_arranged = input.tile((-1,))
+        input_arranged = input.tile((target_dim_size_power2,))
         if out_dims > 0:
             output = output.flatten()
             output_arranged = output.tile((-1,))
@@ -18,7 +16,14 @@ def arrangement(input, output, target_dim_size, in_dims=None, out_dims=None, axi
             output_arranged = output_arranged.tile((1,))
     else:
         if in_dims == 4:
-            input_arranged = input.tile((-1, -1, -1, -1))
+            if axis == 0:
+                input_arranged = input.tile((target_dim_size_power2, -1, -1, -1))
+            elif axis == 1:
+                input_arranged = input.tile((-1, target_dim_size_power2, -1, -1))
+            elif axis == 2:
+                input_arranged = input.tile((-1, -1, target_dim_size_power2, -1))
+            elif axis == 3:
+                input_arranged = input.tile((-1, -1, -1, target_dim_size_power2))
             input_arranged = input_arranged.squeeze(0)
             input_arranged = input_arranged.squeeze(0)
             input_arranged = input_arranged.squeeze(0)
@@ -32,7 +37,10 @@ def arrangement(input, output, target_dim_size, in_dims=None, out_dims=None, axi
             input_arranged = input_arranged.squeeze(0)
             input_arranged = input_arranged.squeeze(0)
         elif in_dims == 2:
-            input_arranged = input.tile((-1, -1))
+            if axis == 0:
+                input_arranged = input.tile((target_dim_size_power2, -1))
+            elif axis == 1:
+                input_arranged = input.tile((-1, target_dim_size_power2))
             input_arranged = input_arranged.squeeze(0)
         elif in_dims == 1:
             input_arranged = input.tile((target_dim_size_power2,))
@@ -58,66 +66,116 @@ def arrangement(input, output, target_dim_size, in_dims=None, out_dims=None, axi
     return input_arranged, output_arranged, target_dim_size
 
 
-def application_0_1(input, output):
-    output = ntl.argmin(input, axis=0, keep_dims=1)
-
-def application_1_1(input, output):
-    output = ntl.argmin(input, axis=1, keep_dims=1)
-
-def application_2_1(input, output):
-    output = ntl.argmin(input, axis=2, keep_dims=1)
-
-def application_3_1(input, output):
-    output = ntl.argmin(input, axis=3, keep_dims=1)
-
-def application_0_0(input, output, target_dim_size):
-    print("application_0_0 called")
+def application_0_1(input, output, target_dim_size):
     valid_mask = ntl.arange(0, input.shape[0]) < target_dim_size
     if input.ndim == 1:
-        # 1D: (size_0,) → 不需要扩展
         mask = valid_mask
     elif input.ndim == 2:
-        # 2D: (size_0, size_1) → mask 扩展为 (size_0, 1)
         mask = valid_mask[:, None]
     elif input.ndim == 3:
-        # 3D: (size_0, size_1, size_2) → mask 扩展为 (size_0, 1, 1)
         mask = valid_mask[:, None, None]
     elif input.ndim == 4:
-        # 4D: (size_0, size_1, size_2, size_3) → mask 扩展为 (size_0, 1, 1, 1)
+        mask = valid_mask[:, None, None, None]
+    else:
+        raise ValueError(f"Unsupported input ndim: {input.ndim}")
+    masked_input = ntl.where(mask, input, float('inf'))
+    output = ntl.argmin(masked_input, axis=0, keep_dims=1)
+
+def application_1_1(input, output, target_dim_size):
+    valid_mask = ntl.arange(0, input.shape[1]) < target_dim_size
+    if input.ndim == 2:
+        mask = valid_mask[None, :]
+    elif input.ndim == 3:
+        mask = valid_mask[None, :, None]
+    elif input.ndim == 4:
+        mask = valid_mask[None, :, None, None]
+    else:
+        raise ValueError(f"Unsupported input ndim: {input.ndim}")
+    masked_input = ntl.where(mask, input, float('inf'))
+    output = ntl.argmin(masked_input, axis=1, keep_dims=1)
+
+def application_2_1(input, output, target_dim_size):
+    valid_mask = ntl.arange(0, input.shape[2]) < target_dim_size
+    if input.ndim == 3:
+        mask = valid_mask[None, None, :]
+    elif input.ndim == 4:
+        mask = valid_mask[None, None, :, None]
+    else:
+        raise ValueError(f"Unsupported input ndim: {input.ndim}")
+    masked_input = ntl.where(mask, input, float('inf'))
+    output = ntl.argmin(masked_input, axis=2, keep_dims=1)
+
+def application_3_1(input, output, target_dim_size):
+    valid_mask = ntl.arange(0, input.shape[3]) < target_dim_size
+    if input.ndim == 4:
+        mask = valid_mask[None, None, None, :]
+    else:     
+        raise ValueError(f"Unsupported input ndim: {input.ndim}") 
+    masked_input = ntl.where(mask, input, float('inf'))
+    output = ntl.argmin(masked_input, axis=3, keep_dims=1)
+
+def application_0_0(input, output, target_dim_size):
+    valid_mask = ntl.arange(0, input.shape[0]) < target_dim_size
+    if input.ndim == 1:
+        mask = valid_mask
+    elif input.ndim == 2:
+        mask = valid_mask[:, None]
+    elif input.ndim == 3:
+        mask = valid_mask[:, None, None]
+    elif input.ndim == 4:
         mask = valid_mask[:, None, None, None]
     else:
         raise ValueError(f"Unsupported input ndim: {input.ndim}")
     masked_input = ntl.where(mask, input, float('inf'))
     output = ntl.argmin(masked_input, axis=0, keep_dims=0)
 
-def application_1_0(input, output):
-    output = ntl.argmin(input, axis=1, keep_dims=0)
+def application_1_0(input, output, target_dim_size):
+    valid_mask = ntl.arange(0, input.shape[1]) < target_dim_size
+    if input.ndim == 2:
+        mask = valid_mask[None, :]
+    elif input.ndim == 3:
+        mask = valid_mask[None, :, None]
+    elif input.ndim == 4:
+        mask = valid_mask[None, :, None, None]
+    else:
+        raise ValueError(f"Unsupported input ndim: {input.ndim}")
+    masked_input = ntl.where(mask, input, float('inf'))
+    output = ntl.argmin(masked_input, axis=1, keep_dims=0)
 
-def application_2_0(input, output):
-    output = ntl.argmin(input, axis=2, keep_dims=0)
+def application_2_0(input, output, target_dim_size):
+    valid_mask = ntl.arange(0, input.shape[2]) < target_dim_size
+    if input.ndim == 3:
+        mask = valid_mask[None, None, :]
+    elif input.ndim == 4:
+        mask = valid_mask[None, None, :, None]
+    else:
+        raise ValueError(f"Unsupported input ndim: {input.ndim}")
+    masked_input = ntl.where(mask, input, float('inf'))
+    output = ntl.argmin(masked_input, axis=2, keep_dims=0)
 
-def application_3_0(input, output):
-    output = ntl.argmin(input, axis=3, keep_dims=0)
+def application_3_0(input, output, target_dim_size):
+    valid_mask = ntl.arange(0, input.shape[3]) < target_dim_size
+    if input.ndim == 4:
+        mask = valid_mask[None, None, None, :]
+    else:
+        raise ValueError(f"Unsupported input ndim: {input.ndim}")
+    masked_input = ntl.where(mask, input, float('inf'))
+    output = ntl.argmin(masked_input, axis=3, keep_dims=0)
 
 def application_0_0_scalar(input, output, target_dim_size):
     valid_mask = ntl.arange(0, input.shape[0]) < target_dim_size
     if input.ndim == 1:
-        # 1D: (size_0,) → 不需要扩展
         mask = valid_mask
     elif input.ndim == 2:
-        # 2D: (size_0, size_1) → mask 扩展为 (size_0, 1)
         mask = valid_mask[:, None]
     elif input.ndim == 3:
-        # 3D: (size_0, size_1, size_2) → mask 扩展为 (size_0, 1, 1)
         mask = valid_mask[:, None, None]
     elif input.ndim == 4:
-        # 4D: (size_0, size_1, size_2, size_3) → mask 扩展为 (size_0, 1, 1, 1)
         mask = valid_mask[:, None, None, None]
     else:
         raise ValueError(f"Unsupported input ndim: {input.ndim}")
     masked_input = ntl.where(mask, input, float('inf'))
     result = ntl.argmin(masked_input, axis=0, keep_dims=0)
-    # result = ntl.argmin(input, axis=0, keep_dims=0)
     output[0] = result
 
 def premake(target_dim_size, dtype=None, in_dims=None, out_dims=None, axis=None, axis_is_none=False, keep_dims=None):
@@ -170,6 +228,11 @@ def premake(target_dim_size, dtype=None, in_dims=None, out_dims=None, axis=None,
                 application = application_2_1
             else:
                 application = application_2_0
+        elif axis == 3:
+            if keep_dims:
+                application = application_3_1
+            else:
+                application = application_3_0
         else:
             raise ValueError(f"Unsupported axis: {axis}")
     
