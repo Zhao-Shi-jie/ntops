@@ -3,6 +3,7 @@ import functools
 import ninetoothed
 import ninetoothed.language as ntl
 from ninetoothed import Tensor
+#from ntops.kernels.reduction import arrangement
 
 BLOCK_SIZE = ninetoothed.block_size()
 
@@ -16,8 +17,7 @@ def cosine_embedding_loss_arrangement(
         x2,
         y, 
         margin, 
-        output, 
-        input_precision, 
+        output,
         block_size=None,
         dims=None,
         embedding_dim=None):
@@ -52,21 +52,11 @@ def cosine_embedding_loss_arrangement(
     output_arranged = output.flatten()
     output_arranged = output_arranged.tile((1,))
     
-    return x1_arranged, x2_arranged, y_arranged, margin, output_arranged, input_precision
+    return x1_arranged, x2_arranged, y_arranged, margin, output_arranged
 
 
-def cosine_embedding_loss_application(x1, x2, y, margin, output, input_precision):
+def cosine_embedding_loss_application(x1, x2, y, margin, output):
     """计算余弦相似度"""
-    # 计算点积
-    # accumulator_dot_product = ntl.zeros([], dtype=ntl.float32)
-    # accumulator_norm1_sq = ntl.zeros([], dtype=ntl.float32)
-    # accumulator_norm2_sq = ntl.zeros([], dtype=ntl.float32)
-
-    if input_precision == 2:  # InputPrecisionVariant.IEEE:
-        input_precision_: ntl.constexpr = "ieee"
-    else:
-        input_precision_: ntl.constexpr = "tf32"
-
     dot_product = 0.0
     norm1_sq = 0.0
     norm2_sq = 0.0
@@ -88,8 +78,7 @@ def cosine_embedding_loss_application(x1, x2, y, margin, output, input_precision
 def cosine_embedding_loss_premake(dtype=None, 
                                   block_size=None, 
                                   dims=None, 
-                                  embedding_dim=None,
-                                  input_precision=None,):
+                                  embedding_dim=None,):
     import math
     embedding_dim_power_of_2 = 2 ** math.ceil(math.log2(embedding_dim)) if embedding_dim > 0 else 1
     arrangement_ = functools.partial(
@@ -105,7 +94,44 @@ def cosine_embedding_loss_premake(dtype=None,
         Tensor(dims-1, dtype=ninetoothed.int32),
         Tensor(0, dtype=ninetoothed.float32),
         Tensor(dims-1, dtype=dtype),
-        Tensor(0, constexpr=True, value=input_precision),
     )
     
     return arrangement_, cosine_embedding_loss_application, tensors
+
+def arrangement_all_elements(input, output, block_size=None):
+    input = input.flatten().tile((block_size,))
+    output = output.tile((1,))
+    return input, output
+
+
+def application_all_elements(input, output):
+    output[0] = ntl.sum(input, 0)
+
+
+def reduce_sum_premake(ndim, dtype=None, block_size=None):
+    arrangement_ = functools.partial(arrangement_all_elements, block_size=block_size)
+
+    tensors = (
+        Tensor(ndim, dtype=dtype),
+        Tensor(1, dtype=dtype),
+    )
+
+    return arrangement_, application_all_elements, tensors
+
+
+from ntops.kernels.element_wise import arrangement
+
+
+def div_application(input, other, output):
+    output = input / other  # noqa: F841
+
+def div_premake(ndim, dtype=None, block_size=None):
+    arrangement_ = functools.partial(arrangement, block_size=block_size)
+
+    tensors = (
+        Tensor(ndim, dtype=dtype),
+        Tensor(0, dtype=ninetoothed.int32),
+        Tensor(ndim, dtype=dtype),
+    )
+
+    return arrangement_, div_application, tensors

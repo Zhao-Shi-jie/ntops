@@ -12,7 +12,7 @@ def argmin(input, axis=None, keepdim=False):
         axis_is_none = False
 
     if axis is None:
-        axis = tuple(range(input.dim()))
+        axis = tuple(range(len(input.shape)))
     elif isinstance(axis, int):
         axis = (axis,)
     else:
@@ -37,8 +37,8 @@ def argmin(input, axis=None, keepdim=False):
         ntops.kernels.argmin.premake,
         input.shape[target_dim] if not axis_is_none else num_elements,
         dtype=input.dtype,
-        in_dims=input.dim(),
-        out_dims=output.dim(),
+        in_dims=len(input.shape),
+        out_dims=len(output.shape),
         axis=target_dim,
         axis_is_none=axis_is_none,
         keep_dims=keepdim,
