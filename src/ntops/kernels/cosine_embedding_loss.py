@@ -3,14 +3,9 @@ import functools
 import ninetoothed
 import ninetoothed.language as ntl
 from ninetoothed import Tensor
-#from ntops.kernels.reduction import arrangement
+
 
 BLOCK_SIZE = ninetoothed.block_size()
-
-class InputPrecisionVariant(enum.IntEnum):
-    TF32 = enum.auto()
-
-    IEEE = enum.auto()
 
 def cosine_embedding_loss_arrangement(
         x1, 
